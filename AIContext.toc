@@ -1,0 +1,32 @@
+## Interface: 30300
+## Title: AI Context
+## Notes: Exports character data for AI assistance.
+## Author: Keathunsar
+## Version: 1.3.1
+## SavedVariables: AIContextDB
+
+-- main lua --
+AIContext.lua
+
+-- Button Scripts --
+ButtonScripts\AIData.lua
+ButtonScripts\BasicInfo.lua
+ButtonScripts\Stats.lua
+ButtonScripts\Currency.lua
+ButtonScripts\Equipment.lua
+ButtonScripts\Bags.lua
+ButtonScripts\Bank.lua
+ButtonScripts\GuildBank.lua
+ButtonScripts\PartyRaid.lua
+ButtonScripts\KeyRing.lua
+ButtonScripts\Talents.lua
+ButtonScripts\Professions.lua
+ButtonScripts\Quests.lua
+ButtonScripts\Mounts.lua
+ButtonScripts\Companions.lua
+ButtonScripts\Achievements.lua
+ButtonScripts\Addons.lua
+ButtonScripts\Glyphs.lua
+ButtonScripts\Reputation.lua
+ButtonScripts\Skills.lua
+ButtonScripts\Spells.lua
