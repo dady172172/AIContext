@@ -48,6 +48,8 @@ AI Context scans and exports detailed character information including equipment,
    - Right column: Skills, Professions, Spells, Quests, Reputation, Mounts, Pets, Achievements, Addons, Party/Raid
 4. A window will appear with the JSON data, which you can copy and paste
 
+![Main Menu](Screenshots/Menu.png)
+
 ## Data Export Format
 
 The add-on exports data in JSON format. Here's an example of the basic info export:
@@ -66,6 +68,8 @@ The add-on exports data in JSON format. Here's an example of the basic info expo
   }
 }
 ```
+
+![JSON Export Example](Screenshots/JsonExample.png)
 
 ## Slash Commands
 
