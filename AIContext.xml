@@ -1,0 +1,121 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+..\FrameXML\UI.xsd">
+	<Script file="AIContext.lua"/>
+	
+	<!-- Include Button Scripts -->
+	<Script file="ButtonScripts\AIData.lua"/>
+	<Script file="ButtonScripts\BasicInfo.lua"/>
+	<Script file="ButtonScripts\Stats.lua"/>
+	<Script file="ButtonScripts\Currency.lua"/>
+	<Script file="ButtonScripts\Equipment.lua"/>
+	<Script file="ButtonScripts\Bags.lua"/>
+	<Script file="ButtonScripts\Bank.lua"/>
+	<Script file="ButtonScripts\GuildBank.lua"/>
+	<Script file="ButtonScripts\PartyRaid.lua"/>
+	<Script file="ButtonScripts\KeyRing.lua"/>
+	<Script file="ButtonScripts\Talents.lua"/>
+	<Script file="ButtonScripts\Professions.lua"/>
+	<Script file="ButtonScripts\Quests.lua"/>
+	<Script file="ButtonScripts\Mounts.lua"/>
+	<Script file="ButtonScripts\Companions.lua"/>
+	<Script file="ButtonScripts\Achievements.lua"/>
+	<Script file="ButtonScripts\Addons.lua"/>
+	<Script file="ButtonScripts\Glyphs.lua"/>
+	<Script file="ButtonScripts\Reputation.lua"/>
+	<Script file="ButtonScripts\Skills.lua"/>
+	<Script file="ButtonScripts\Spells.lua"/>
+
+	<Button name="AIContextMinimapButton" parent="Minimap">
+		<Size>
+			<AbsDimension x="33" y="33"/>
+		</Size>
+		<Anchors>
+			<Anchor point="TOPRIGHT" relativeTo="Minimap">
+				<Offset>
+					<AbsDimension x="-10" y="-10"/>
+				</Offset>
+			</Anchor>
+		</Anchors>
+		<Layers>
+			<Layer level="BACKGROUND">
+				<Texture name="$parentBackground" file="Interface\Minimap\UI-Minimap-Background">
+					<Size>
+						<AbsDimension x="19" y="19"/>
+					</Size>
+					<Anchors>
+						<Anchor point="CENTER">
+							<Offset>
+								<AbsDimension x="-1" y="2"/>
+							</Offset>
+						</Anchor>
+					</Anchors>
+				</Texture>
+			</Layer>
+			<Layer level="BORDER">
+				<Texture name="$parentIcon" file="Interface\AddOns\AIContext\Images\AIContext_Icon">
+					<Size x="18" y="18"/>
+					<Anchors>
+						<Anchor point="CENTER">
+							<Offset x="-1" y="2"/>
+						</Anchor>
+					</Anchors>
+				</Texture>
+				<Texture name="$parentBorder" file="Interface\Minimap\MiniMap-TrackingBorder">
+					<Size>
+						<AbsDimension x="52" y="52"/>
+					</Size>
+					<Anchors>
+						<Anchor point="TOPLEFT"/>
+					</Anchors>
+				</Texture>
+			</Layer>
+			<Layer level="OVERLAY">
+				<Texture name="$parentShine" file="Interface\ComboFrame\ComboPoint" alphaMode="ADD" hidden="true">
+					<Size>
+						<AbsDimension x="32" y="32"/>
+					</Size>
+					<Anchors>
+						<Anchor point="CENTER">
+							<Offset>
+								<AbsDimension x="3" y="3"/>
+							</Offset>
+						</Anchor>
+					</Anchors>
+					<TexCoords left="0.5625" right="1" top="0" bottom="1"/>
+				</Texture>
+			</Layer>
+		</Layers>
+		<Scripts>
+			<OnLoad>
+				self:RegisterForClicks("LeftButtonUp", "RightButtonUp");
+				self:SetFrameLevel(self:GetFrameLevel() + 1);
+				self:RegisterForDrag("LeftButton");
+			</OnLoad>
+			<OnClick>
+				if (arg1 == "LeftButton") then
+					AIContext.ToggleFrame();
+				end
+			</OnClick>
+			<OnEnter>
+				GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+				GameTooltip:SetText("AIContext", 1, 1, 1)
+				GameTooltip:AddLine("Click to open/close", 0.7, 0.7, 0.7)
+				GameTooltip:AddLine("Drag to reposition", 0.7, 0.7, 0.7)
+				GameTooltip:Show()
+			</OnEnter>
+			<OnLeave>
+				GameTooltip:Hide()
+			</OnLeave>
+			<OnMouseUp>
+				self:StopMovingOrSizing()
+			</OnMouseUp>
+			<OnDragStart>
+				self:StartMoving()
+			</OnDragStart>
+			<OnDragStop>
+				self:StopMovingOrSizing()
+			</OnDragStop>
+		</Scripts>
+		<HighlightTexture alphaMode="ADD" file="Interface\Minimap\UI-Minimap-ZoomButton-Highlight"/>
+	</Button>
+</Ui>

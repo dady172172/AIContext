@@ -119,6 +119,12 @@ local title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 title:SetPoint("TOP", 0, -20)
 title:SetText("AIContext")
 
+-- Add icon to the left of the title
+local titleIcon = mainFrame:CreateTexture(nil, "OVERLAY")
+titleIcon:SetSize(24, 24)
+titleIcon:SetPoint("RIGHT", title, "LEFT", -8, 0)
+titleIcon:SetTexture("Interface\\AddOns\\AIContext\\Images\\AIContext_Icon.tga")
+
 local closeBtn = CreateFrame("Button", nil, mainFrame, "UIPanelCloseButton")
 closeBtn:SetPoint("TOPRIGHT", -5, -5)
 
@@ -220,64 +226,11 @@ SlashCmdList["AICONTEXT"] = function()
     if mainFrame:IsShown() then mainFrame:Hide() else mainFrame:Show() end
 end
 
--- 4. MINIMAP BUTTON
-local miniBtn = CreateFrame("Button", "AIContextMiniBtn", Minimap)
-miniBtn:SetSize(32, 32)
-miniBtn:SetFrameStrata("MEDIUM")
-miniBtn:SetPoint("TOPLEFT", Minimap, "TOPLEFT", 0, 0)
-
--- Create a circular icon texture
-local miniBtnTex = miniBtn:CreateTexture(nil, "BACKGROUND")
-miniBtnTex:SetSize(20, 20)
-miniBtnTex:SetPoint("CENTER", 0, 0)
-miniBtnTex:SetTexCoord(0.1, 0.9, 0.1, 0.9)
-
--- Try to load the texture, fallback to a generic one
-local texture = GetItemIcon(2070) -- Use a default item icon as fallback
-if texture then
-    miniBtnTex:SetTexture(texture)
-else
-    miniBtnTex:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
-end
-
--- Create border
-local miniBtnBorder = miniBtn:CreateTexture(nil, "OVERLAY")
-miniBtnBorder:SetSize(32, 32)
-miniBtnBorder:SetPoint("CENTER", 0, 0)
-miniBtnBorder:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-
--- Set position on minimap (default: top-right area)
-miniBtn:SetPoint("TOPRIGHT", Minimap, "TOPRIGHT", -10, -10)
-
--- Enable dragging for repositioning
-miniBtn:RegisterForDrag("LeftButton")
-miniBtn:SetScript("OnDragStart", function(self)
-    self:StartMoving()
-end)
-miniBtn:SetScript("OnDragStop", function(self)
-    self:StopMovingOrSizing()
-end)
-
--- Click to toggle main window
-miniBtn:SetScript("OnClick", function()
-    if mainFrame:IsShown() then 
-        mainFrame:Hide() 
-    else 
-        mainFrame:Show() 
+-- Global function for minimap button click
+function AIContext.ToggleFrame()
+    if mainFrame:IsShown() then
+        mainFrame:Hide()
+    else
+        mainFrame:Show()
     end
-end)
-
--- Tooltip
-miniBtn:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    GameTooltip:SetText("AIContext", 1, 1, 1)
-    GameTooltip:AddLine("Click to open/close", 0.7, 0.7, 0.7)
-    GameTooltip:AddLine("Drag to reposition", 0.7, 0.7, 0.7)
-    GameTooltip:Show()
-end)
-miniBtn:SetScript("OnLeave", function()
-    GameTooltip:Hide()
-end)
-
--- Show the button (hidden by default until positioned)
-miniBtn:Show()
+end
