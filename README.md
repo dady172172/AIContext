@@ -80,7 +80,7 @@ The add-on exports data in JSON format. Here's an example of the basic info expo
 
 ## Version
 
-- **Version**: 1.3.1
+- **Version**: 1.3.4
 - **Interface**: 30300 (WotLK 3.3.5a)
 - **Saved Variables**: AIContextDB
 
