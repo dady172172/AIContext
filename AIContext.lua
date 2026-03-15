@@ -202,7 +202,7 @@ end
 -- C. Right Column (World & Skills)
 local rightCol = {
     {"Skills", "Skills"},
-    {"Professions", "Professions"},
+    {"Recipes", "Recipes"},
     {"Spells", "Spells"},
     {"Quests", "Quests"},
     {"Reputation", "Reputation"},

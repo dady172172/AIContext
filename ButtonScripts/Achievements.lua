@@ -7,7 +7,7 @@ AIContext.Scripts["Achievements"] = function()
         for i=1, numAch do
             local id, name, points, completed = GetAchievementInfo(catId, i)
             if completed then
-                table.insert(ach, string.format('{"id":%d,"n":"%s","p":%d}', id, Escape(name), points))
+                table.insert(ach, '"'..Escape(name)..'"')
             end
         end
     end

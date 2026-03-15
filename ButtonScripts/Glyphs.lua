@@ -7,9 +7,9 @@ AIContext.Scripts["Glyphs"] = function()
             if glyphSpellID then
                 local name = GetSpellInfo(glyphSpellID)
                 if not name then name = "Unknown ID: " .. tostring(glyphSpellID) end
-                table.insert(gly, string.format('{"s":%d,"n":"%s"}', i, Escape(name)))
+                table.insert(gly, string.format('"%s"', Escape(name)))
             else
-                table.insert(gly, string.format('{"s":%d,"n":"Empty"}', i))
+                table.insert(gly, '"Empty"')
             end
         end
     end

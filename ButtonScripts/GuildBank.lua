@@ -9,13 +9,28 @@ AIContext.Scripts["GuildBank"] = function()
     local gbk = {}
     if db.GuildBank and next(db.GuildBank) then
         for tab, tabData in pairs(db.GuildBank) do
-            local tabItems = {}
+            local itemCounts = {}
             if tabData.items then
                 for _, item in ipairs(tabData.items) do
-                    table.insert(tabItems, string.format('{"s":%d,"i":"%s","c":%d}', item.slot, Escape(item.link), item.count))
+                    if item.link then
+                        local name = GetItemInfo(item.link)
+                        if name then
+                            if not itemCounts[name] then
+                                itemCounts[name] = 0
+                            end
+                            itemCounts[name] = itemCounts[name] + (item.count or 1)
+                        end
+                    end
                 end
             end
-            table.insert(gbk, string.format('"Tab%d":{"n":"%s","i":[%s]}', tab, Escape(tabData.name or ""), table.concat(tabItems, ",")))
+            
+            -- Build items object for this tab
+            local tabItems = {}
+            for name, count in pairs(itemCounts) do
+                table.insert(tabItems, string.format('"%s":%d', Escape(name), count))
+            end
+            
+            table.insert(gbk, string.format('"%s":{%s}', Escape(tabData.name or "Tab"..tab), table.concat(tabItems, ",")))
         end
     else
         table.insert(gbk, '"error":"No guild bank data saved"')

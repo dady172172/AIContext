@@ -1,17 +1,31 @@
 AIContext.Scripts["Bags"] = function()
     local function Escape(s) return string.gsub(s or "", '"', '\\"') end
-    local inv = {}
+    local itemCounts = {}
+    
+    -- Aggregate items by name and count
     for bag = 0, 4 do
         local numSlots = GetContainerNumSlots(bag)
         if numSlots > 0 then
             for slot = 1, numSlots do
                 local link = GetContainerItemLink(bag, slot)
                 if link then
+                    local name = GetItemInfo(link)
                     local _, count = GetContainerItemInfo(bag, slot)
-                    table.insert(inv, string.format('"B%dS%d":"%s"', bag, slot, Escape(link)))
+                    if name then
+                        if not itemCounts[name] then
+                            itemCounts[name] = 0
+                        end
+                        itemCounts[name] = itemCounts[name] + count
+                    end
                 end
             end
         end
     end
-    return '{"Bags":{'..table.concat(inv, ",")..'}}'
+    
+    -- Build JSON object
+    local items = {}
+    for name, count in pairs(itemCounts) do
+        table.insert(items, string.format('"%s":%d', Escape(name), count))
+    end
+    return '{"Bags":{'..table.concat(items, ",")..'}}'
 end

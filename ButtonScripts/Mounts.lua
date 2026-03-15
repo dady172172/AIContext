@@ -4,7 +4,7 @@ AIContext.Scripts["Mounts"] = function()
     local numMounts = GetNumCompanions("MOUNT")
     for i=1, numMounts do
         local _, name, _, _, isSummoned = GetCompanionInfo("MOUNT", i)
-        table.insert(mnt, string.format('{"n":"%s","s":%d}', Escape(name or "Unknown Mount"), isSummoned and 1 or 0))
+        table.insert(mnt, string.format('"%s"', Escape(name or "Unknown Mount")))
     end
     return '{"Mounts":['..table.concat(mnt, ",")..']}'
 end

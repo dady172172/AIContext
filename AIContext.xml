@@ -14,7 +14,7 @@
 	<Script file="ButtonScripts\PartyRaid.lua"/>
 	<Script file="ButtonScripts\KeyRing.lua"/>
 	<Script file="ButtonScripts\Talents.lua"/>
-	<Script file="ButtonScripts\Professions.lua"/>
+	<Script file="ButtonScripts\Recipes.lua"/>
 	<Script file="ButtonScripts\Quests.lua"/>
 	<Script file="ButtonScripts\Mounts.lua"/>
 	<Script file="ButtonScripts\Companions.lua"/>

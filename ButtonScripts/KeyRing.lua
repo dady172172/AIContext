@@ -7,9 +7,12 @@ AIContext.Scripts["KeyRing"] = function()
         for slot = 1, numSlots do
             local link = GetContainerItemLink(bag, slot)
             if link then
-                table.insert(items, string.format('"%d":"%s"', slot, Escape(link)))
+                local itemName = GetItemInfo(link)
+                if itemName then
+                    table.insert(items, string.format('"%s"', Escape(itemName)))
+                end
             end
         end
     end
-    return '{"KeyRing":{'..table.concat(items, ",")..'}}'
+    return '{"KeyRing":['..table.concat(items, ",")..']}'
 end

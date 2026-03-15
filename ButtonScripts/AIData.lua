@@ -32,72 +32,349 @@ AIContext.Scripts["AI"] = function()
     table.insert(parts, string.format('"Info":{"Name":"%s","Lvl":%d,"Class":"%s","Race":"%s","Realm":"%s","Zone":"%s","SubZone":"%s","Loc":"%s","Gold":%d,"Silver":%d,"Copper":%d}', 
         UnitName("player"), UnitLevel("player"), select(2,UnitClass("player")), select(2,UnitRace("player")), GetRealmName(), zone, subzone, coords, gold, silver, copper))
 
-    -- STATS
-    local s = {}
-    table.insert(s, '"Str":'..UnitStat("player", 1))
-    table.insert(s, '"Agi":'..UnitStat("player", 2))
-    table.insert(s, '"Sta":'..UnitStat("player", 3))
-    table.insert(s, '"Int":'..UnitStat("player", 4))
-    table.insert(s, '"Spi":'..UnitStat("player", 5))
-    table.insert(s, '"SP":'..GetSpellBonusDamage(2))
-    table.insert(s, string.format('"Crit":%.2f', GetSpellCritChance(2)))
-    table.insert(s, '"Haste":'..GetCombatRating(18))
-    table.insert(s, '"Hit":'..GetCombatRating(6))
-    table.insert(s, '"Expertise":'..GetCombatRating(24))
-    table.insert(s, string.format('"ManaRegen":%.2f', GetManaRegen() * 5))
+    -- STATS (Enhanced from Stats.lua)
+    local stats = {}
+    
+    -- 1. Vitals
+    stats.MaxHealth = UnitHealthMax("player")
+    stats.MaxPower = UnitPowerMax("player")
+    
+    -- 2. Base Stats (1=Str, 2=Agi, 3=Sta, 4=Int, 5=Spi)
+    stats.Str = select(2, UnitStat("player", 1))
+    stats.Agi = select(2, UnitStat("player", 2))
+    stats.Sta = select(2, UnitStat("player", 3))
+    stats.Int = select(2, UnitStat("player", 4))
+    stats.Spi = select(2, UnitStat("player", 5))
+    
+    -- 3. Melee Stats
+    local baseAP, posBuffAP, negBuffAP = UnitAttackPower("player")
+    stats.MeleeAP = baseAP + posBuffAP + negBuffAP
+    stats.ArmorPen = GetArmorPenetration() or 0
+    stats.MeleeHit = GetCombatRating(6)
+    stats.MeleeCrit = math.floor(GetCritChance() * 100) / 100
+    stats.MeleeHaste = GetCombatRating(18)
+    stats.Expertise = GetExpertise() or 0
+    
+    -- 4. Ranged Stats
+    local baseRAP, posBuffRAP, negBuffRAP = UnitRangedAttackPower("player")
+    stats.RangedAP = baseRAP + posBuffRAP + negBuffRAP
+    stats.RangedHit = GetCombatRating(7)
+    stats.RangedCrit = math.floor(GetRangedCritChance() * 100) / 100
+    stats.RangedHaste = GetCombatRating(19)
+    
+    -- 5. Spell Stats
+    local maxSpellPower = 0
+    for i=1, 7 do
+        local sp = GetSpellBonusDamage(i)
+        if sp > maxSpellPower then maxSpellPower = sp end
+    end
+    stats.SpellPower = maxSpellPower
+    stats.BonusHealing = GetSpellBonusHealing() or 0
+    stats.SpellHit = GetCombatRating(8)
+    -- Loop through magic schools to find the highest Spell Crit (2=Holy, 3=Fire, 4=Nature, 5=Frost, 6=Shadow, 7=Arcane)
+    local maxSpellCrit = 0
+    for i=2, 7 do
+        local crit = GetSpellCritChance(i)
+        if crit > maxSpellCrit then maxSpellCrit = crit end
+    end
+    stats.SpellCrit = math.floor(maxSpellCrit * 100) / 100
+    stats.SpellHaste = GetCombatRating(20)
+    stats.SpellPen = GetSpellPenetration() or 0
+    
+    local baseRegen, castingRegen = GetManaRegen()
+    stats.ManaRegenBase = math.floor(baseRegen * 5)
+    stats.ManaRegenCasting = math.floor(castingRegen * 5)
+    
+    -- 6. Defenses
     local _, effectiveArmor = UnitArmor("player")
-    table.insert(s, '"Armor":'..effectiveArmor)
+    stats.Armor = effectiveArmor
     local baseDef, armorDef = UnitDefense("player")
-    table.insert(s, '"Defense":'..(baseDef + armorDef))
-    table.insert(s, string.format('"Dodge":%.2f', GetDodgeChance()))
-    table.insert(s, string.format('"Parry":%.2f', GetParryChance()))
-    table.insert(s, string.format('"Block":%.2f', GetBlockChance()))
-    table.insert(s, '"Resilience":'..GetCombatRating(15))
-    table.insert(parts, '"Stats":{'..table.concat(s, ",")..'}')
+    stats.Defense = math.floor(baseDef + armorDef)
+    stats.Dodge = math.floor(GetDodgeChance() * 100) / 100
+    stats.Parry = math.floor(GetParryChance() * 100) / 100
+    stats.Block = math.floor(GetBlockChance() * 100) / 100
+    stats.Resilience = GetCombatRating(15)
+    
+    -- 7. Resistances (2=Fire, 3=Nature, 4=Frost, 5=Shadow, 6=Arcane)
+    stats.ResistFire = select(2, UnitResistance("player", 2)) or 0
+    stats.ResistNature = select(2, UnitResistance("player", 3)) or 0
+    stats.ResistFrost = select(2, UnitResistance("player", 4)) or 0
+    stats.ResistShadow = select(2, UnitResistance("player", 5)) or 0
+    stats.ResistArcane = select(2, UnitResistance("player", 6)) or 0
+    
+    -- Format stats into JSON
+    local s = {}
+    for k, v in pairs(stats) do
+        table.insert(s, string.format('"%s":%s', k, tostring(v)))
+    end
+    table.insert(parts, '"Stats":{' .. table.concat(s, ",") .. '}')
 
-    -- GEAR
+    -- GEAR (Enhanced with item ID, stats, enchantments, sockets)
+    local function GetReadableStatName(internalName)
+        local statNameMap = {
+            ["ITEM_MOD_STRENGTH_SHORT"] = "Strength",
+            ["ITEM_MOD_AGILITY_SHORT"] = "Agility",
+            ["ITEM_MOD_STAMINA_SHORT"] = "Stamina",
+            ["ITEM_MOD_INTELLECT_SHORT"] = "Intellect",
+            ["ITEM_MOD_SPIRIT_SHORT"] = "Spirit",
+            ["STRENGTH"] = "Strength",
+            ["AGILITY"] = "Agility",
+            ["STAMINA"] = "Stamina",
+            ["INTELLECT"] = "Intellect",
+            ["SPIRIT"] = "Spirit",
+            ["ITEM_MOD_CR_DEFENSE_SKILL_SHORT"] = "Defense",
+            ["ITEM_MOD_DODGE_RATING_SHORT"] = "Dodge",
+            ["ITEM_MOD_PARRY_RATING_SHORT"] = "Parry",
+            ["ITEM_MOD_BLOCK_RATING_SHORT"] = "Block",
+            ["ITEM_MOD_BLOCK_VALUE_SHORT"] = "Block Value",
+            ["ITEM_MOD_HIT_RATING_SHORT"] = "Hit",
+            ["ITEM_MOD_CRIT_RATING_SHORT"] = "Crit",
+            ["ITEM_MOD_HASTE_RATING_SHORT"] = "Haste",
+            ["ITEM_MOD_EXPERTISE_RATING_SHORT"] = "Expertise",
+            ["ITEM_MOD_SPELL_POWER_SHORT"] = "Spell Power",
+            ["ITEM_MOD_ATTACK_POWER_SHORT"] = "Attack Power",
+            ["ARMOR"] = "Armor",
+            ["ARMOR_BONUS"] = "Armor",
+            ["ITEM_MOD_RESISTANCE_FIRE_SHORT"] = "Fire Resistance",
+            ["ITEM_MOD_RESISTANCE_NATURE_SHORT"] = "Nature Resistance",
+            ["ITEM_MOD_RESISTANCE_FROST_SHORT"] = "Frost Resistance",
+            ["ITEM_MOD_RESISTANCE_SHADOW_SHORT"] = "Shadow Resistance",
+            ["ITEM_MOD_RESISTANCE_ARCANE_SHORT"] = "Arcane Resistance",
+            ["ITEM_MOD_HEALTH_SHORT"] = "Health",
+            ["ITEM_MOD_MANA_SHORT"] = "Mana",
+            ["ITEM_MOD_RESILIENCE_RATING_SHORT"] = "Resilience",
+        }
+        if statNameMap[internalName] then return statNameMap[internalName] end
+        local readable = string.gsub(internalName, "ITEM_MOD_", "")
+        readable = string.gsub(readable, "_", " ")
+        readable = string.gsub(readable, " SHORT$", "")
+        return readable
+    end
+    local function GetItemDetailsForAIData(link, slot)
+        if not link then return nil end
+        local itemID = tonumber(string.match(link, "item:(%d+)"))
+        if not itemID then return nil end
+        local details = {
+            itemID = itemID,
+            link = link,
+            name = nil,
+            rarity = nil,
+            itemLevel = nil,
+            slot = nil,
+            durability = nil,
+            stats = {},
+            enchant = nil,
+            sockets = {}
+        }
+        local enchantID, gem1, gem2, gem3, gem4 = string.match(link, "item:%d+:(%d+):(%d+):(%d+):(%d+):(%d+)")
+        enchantID = tonumber(enchantID)
+        
+        -- Get item info for name, rarity, item level
+        local itemName, _, itemRarity, itemLevel, _, _, _, _, itemEquipLoc = GetItemInfo(link)
+        if itemName then details.name = itemName end
+        if itemRarity then details.rarity = itemRarity end
+        if itemLevel then details.itemLevel = itemLevel end
+        if itemEquipLoc then details.slot = itemEquipLoc end
+        
+        -- Get durability for this slot
+        if slot then
+            local currentDurability, maxDurability = GetInventoryItemDurability(slot)
+            if currentDurability and maxDurability and maxDurability > 0 then
+                details.durability = {current = currentDurability, max = maxDurability}
+            end
+        end
+        
+        local itemStats = GetItemStats(link)
+        if itemStats then
+            for stat, value in pairs(itemStats) do
+                local readableName = GetReadableStatName(stat)
+                table.insert(details.stats, {name = readableName, value = value, internal = stat})
+            end
+        end
+        if enchantID and enchantID > 0 then
+            local knownEnchantStats = {
+                ["+7 Stamina"] = true, ["+10 Stats"] = true, ["+12 Stamina"] = true, ["+20 Stamina"] = true,
+                ["+22 Stamina"] = true, ["+23 Stamina"] = true, ["+30 Stamina"] = true, ["+37 Stamina"] = true,
+                ["+40 Stamina"] = true, ["+41 Stamina"] = true, ["+8 Agility"] = true, ["+10 Agility"] = true,
+                ["+12 Agility"] = true, ["+15 Agility"] = true, ["+16 Agility"] = true, ["+18 Agility"] = true,
+                ["+20 Agility"] = true, ["+22 Agility"] = true, ["+25 Agility"] = true, ["+26 Agility"] = true,
+                ["+30 Agility"] = true, ["+35 Agility"] = true, ["+36 Agility"] = true, ["+37 Agility"] = true,
+                ["+40 Agility"] = true, ["+41 Agility"] = true, ["+44 Agility"] = true, ["+45 Agility"] = true,
+                ["+50 Agility"] = true, ["+8 Strength"] = true, ["+10 Strength"] = true, ["+12 Strength"] = true,
+                ["+15 Strength"] = true, ["+16 Strength"] = true, ["+20 Strength"] = true, ["+22 Strength"] = true,
+                ["+25 Strength"] = true, ["+30 Strength"] = true, ["+35 Strength"] = true, ["+37 Strength"] = true,
+                ["+40 Strength"] = true, ["+41 Strength"] = true, ["+44 Strength"] = true, ["+45 Strength"] = true,
+                ["+50 Strength"] = true, ["+8 Intellect"] = true, ["+10 Intellect"] = true, ["+12 Intellect"] = true,
+                ["+15 Intellect"] = true, ["+20 Intellect"] = true, ["+22 Intellect"] = true, ["+25 Intellect"] = true,
+                ["+30 Intellect"] = true, ["+35 Intellect"] = true, ["+37 Intellect"] = true, ["+40 Intellect"] = true,
+                ["+41 Intellect"] = true, ["+44 Intellect"] = true, ["+45 Intellect"] = true, ["+50 Intellect"] = true,
+                ["+8 Spirit"] = true, ["+10 Spirit"] = true, ["+12 Spirit"] = true, ["+20 Spirit"] = true,
+                ["+22 Spirit"] = true, ["+25 Spirit"] = true, ["+30 Spirit"] = true, ["+35 Spirit"] = true,
+                ["+37 Spirit"] = true, ["+40 Spirit"] = true, ["+41 Spirit"] = true, ["+44 Spirit"] = true,
+                ["+45 Spirit"] = true, ["+50 Spirit"] = true
+            }
+            local enchantStatsList = {}
+            if itemStats then
+                for stat, value in pairs(itemStats) do
+                    if knownEnchantStats[stat] then
+                        table.insert(enchantStatsList, {name = stat, value = value})
+                    end
+                end
+            end
+            if #enchantStatsList > 0 or enchantID then
+                details.enchant = {id = enchantID, stats = enchantStatsList}
+            end
+        end
+        local gems = {tonumber(gem1) or 0, tonumber(gem2) or 0, tonumber(gem3) or 0, tonumber(gem4) or 0}
+        for i, gemID in ipairs(gems) do
+            if gemID and gemID > 0 then
+                local socketInfo = {gemID = gemID}
+                local gemName = GetItemInfo(gemID)
+                if gemName then
+                    socketInfo.name = gemName
+                    local lowerName = string.lower(gemName)
+                    if string.find(lowerName, "meta") then socketInfo.color = "meta"
+                    elseif string.find(lowerName, "prismatic") then socketInfo.color = "prismatic"
+                    elseif string.find(lowerName, "ruby") or string.find(lowerName, "red") then socketInfo.color = "red"
+                    elseif string.find(lowerName, "sapphire") or string.find(lowerName, "blue") then socketInfo.color = "blue"
+                    elseif string.find(lowerName, "emerald") or string.find(lowerName, "green") then socketInfo.color = "green"
+                    elseif string.find(lowerName, "topaz") or string.find(lowerName, "yellow") then socketInfo.color = "yellow"
+                    elseif string.find(lowerName, "amethyst") or string.find(lowerName, "purple") then socketInfo.color = "purple"
+                    elseif string.find(lowerName, "cobalt") then socketInfo.color = "cobalt"
+                    elseif string.find(lowerName, "twilight") then socketInfo.color = "twilight"
+                    elseif string.find(lowerName, "autumn") then socketInfo.color = "autumn"
+                    elseif string.find(lowerName, "forest") then socketInfo.color = "forest"
+                    elseif string.find(lowerName, "dragon's eye") then socketInfo.color = "prismatic"
+                    end
+                end
+                local gemLink = select(2, GetItemInfo(gemID))
+                if gemLink then
+                    local gemStats = GetItemStats(gemLink)
+                    if gemStats then
+                        local gemStatsList = {}
+                        for stat, value in pairs(gemStats) do
+                            table.insert(gemStatsList, {name = stat, value = value})
+                        end
+                        if #gemStatsList > 0 then socketInfo.stats = gemStatsList end
+                    end
+                end
+                table.insert(details.sockets, socketInfo)
+            end
+        end
+        return details
+    end
     local g = {}
     for i=1, 19 do
-        local l = GetInventoryItemLink("player", i)
-        if l then table.insert(g, string.format('"%d":"%s"', i, Escape(l))) end
+        local link = GetInventoryItemLink("player", i)
+        if link then
+            local details = GetItemDetailsForAIData(link, i)
+            if details then
+                local slotData = {}
+                table.insert(slotData, '"id":' .. details.itemID)
+                table.insert(slotData, '"link":"' .. Escape(details.link) .. '"')
+                if details.name then
+                    table.insert(slotData, '"name":"' .. Escape(details.name) .. '"')
+                end
+                if details.rarity then
+                    table.insert(slotData, '"rarity":' .. details.rarity)
+                end
+                if details.itemLevel then
+                    table.insert(slotData, '"iLvl":' .. details.itemLevel)
+                end
+                if details.slot then
+                    table.insert(slotData, '"slot":"' .. details.slot .. '"')
+                end
+                if details.durability then
+                    table.insert(slotData, '"durability":[' .. details.durability.current .. ',' .. details.durability.max .. ']')
+                end
+                if details.stats and #details.stats > 0 then
+                    local statsList = {}
+                    for _, stat in ipairs(details.stats) do
+                        table.insert(statsList, '"' .. Escape(stat.name) .. '":' .. stat.value)
+                    end
+                    table.insert(slotData, '"stats":{' .. table.concat(statsList, ',') .. '}')
+                else
+                    table.insert(slotData, '"stats":{}')
+                end
+                if details.enchant then
+                    local enchantParts = {}
+                    if details.enchant.id then table.insert(enchantParts, '"id":' .. details.enchant.id) end
+                    if details.enchant.stats and #details.enchant.stats > 0 then
+                        local enchantStatsList = {}
+                        for _, stat in ipairs(details.enchant.stats) do
+                            table.insert(enchantStatsList, '"' .. Escape(stat.name) .. '":' .. stat.value)
+                        end
+                        table.insert(enchantParts, '"stats":{' .. table.concat(enchantStatsList, ',') .. '}')
+                    end
+                    table.insert(slotData, '"enchant":{' .. table.concat(enchantParts, ',') .. '}')
+                else
+                    table.insert(slotData, '"enchant":null')
+                end
+                if details.sockets and #details.sockets > 0 then
+                    local socketsList = {}
+                    for _, socket in ipairs(details.sockets) do
+                        local socketParts = {}
+                        if socket.gemID then table.insert(socketParts, '"id":' .. socket.gemID) end
+                        if socket.name then table.insert(socketParts, '"name":"' .. Escape(socket.name) .. '"') end
+                        if socket.color then table.insert(socketParts, '"color":"' .. socket.color .. '"') end
+                        if socket.stats and #socket.stats > 0 then
+                            local socketStatsList = {}
+                            for _, stat in ipairs(socket.stats) do
+                                table.insert(socketStatsList, '"' .. Escape(stat.name) .. '":' .. stat.value)
+                            end
+                            table.insert(socketParts, '"stats":{' .. table.concat(socketStatsList, ',') .. '}')
+                        end
+                        table.insert(socketsList, '{' .. table.concat(socketParts, ',') .. '}')
+                    end
+                    table.insert(slotData, '"sockets":[' .. table.concat(socketsList, ',') .. ']')
+                else
+                    table.insert(slotData, '"sockets":[]')
+                end
+                table.insert(g, string.format('"%d":{%s}', i, table.concat(slotData, ',')))
+            else
+                table.insert(g, string.format('"%d":"%s"', i, Escape(link)))
+            end
+        end
     end
     table.insert(parts, '"Gear":{'..table.concat(g, ",")..'}')
 
-    -- INVENTORY (Bags 0-4 + KeyRing -2 + Saved Bank + Saved Guild Bank)
-    local inv = {}
-    -- Scan Bags 0-4 and KeyRing -2
-    local bagsToScan = {0, 1, 2, 3, 4, -2}
-    for _, bag in ipairs(bagsToScan) do
-        for slot=1,GetContainerNumSlots(bag) do
-            local l = GetContainerItemLink(bag, slot)
-            if l then 
-                local _, c = GetContainerItemInfo(bag, slot)
-                table.insert(inv, string.format('"%s":%d', Escape(l), c or 1))
-            end
-        end
+    -- BAGS
+    local bagsResult = AIContext.Scripts["Bags"]()
+    local bagsMatch = string.match(bagsResult, '"Bags":{%w*')
+    if bagsMatch then
+        table.insert(parts, string.match(bagsResult, '"Bags":.*'))
     end
-    -- Add Saved Bank Items
-    if db.Bank then
-        for _, v in ipairs(db.Bank) do
-             table.insert(inv, string.format('"%s":%d', Escape(v.link), v.count or 1))
-        end
-    end
-    table.insert(parts, '"Inv":{'..table.concat(inv, ",")..'}')
-
-    -- GUILD BANK
-    local gbk = {}
-    if db.GuildBank then
-        for tab, tabData in pairs(db.GuildBank) do
-            local tabItems = {}
-            if tabData.items then
-                for _, item in ipairs(tabData.items) do
-                    table.insert(tabItems, string.format('{"s":%d,"i":"%s","c":%d}', item.slot, Escape(item.link), item.count))
+    
+    -- KEYRING
+    local keyring = {}
+    local keyringBag = -2
+    local keyringSlots = GetContainerNumSlots(keyringBag)
+    if keyringSlots > 0 then
+        for slot=1, keyringSlots do
+            local link = GetContainerItemLink(keyringBag, slot)
+            if link then
+                local itemName = GetItemInfo(link)
+                if itemName then
+                    table.insert(keyring, string.format('"%s"', Escape(itemName)))
                 end
             end
-            table.insert(gbk, string.format('"Tab%d":{"n":"%s","i":[%s]}', tab, Escape(tabData.name or ""), table.concat(tabItems, ",")))
         end
     end
-    table.insert(parts, '"GuildBank":{'..table.concat(gbk, ",")..'}')
+    table.insert(parts, '"KeyRing":['..table.concat(keyring, ",")..']')
+
+    -- BANK
+    local bankResult = AIContext.Scripts["Bank"]()
+    local bankMatch = string.match(bankResult, '"Bank":{%w*')
+    if bankMatch then
+        table.insert(parts, string.match(bankResult, '"Bank":.*'))
+    end
+
+    -- GUILD BANK
+    local gbkResult = AIContext.Scripts["GuildBank"]()
+    local gbkMatch = string.match(gbkResult, '"GuildBank":.*')
+    if gbkMatch then
+        table.insert(parts, string.match(gbkResult, '"GuildBank":.*'))
+    end
 
     -- CURRENCY
     local curr = {}
@@ -112,27 +389,19 @@ AIContext.Scripts["AI"] = function()
     -- SKILLS
     local skills = {}
     for i=1, GetNumSkillLines() do
-        local skillName, isHeader, _, skillRank = GetSkillLineInfo(i)
+        local skillName, isHeader, _, skillRank, _, _, skillMaxRank = GetSkillLineInfo(i)
         if not isHeader then
-            table.insert(skills, string.format('"%s":%d', Escape(skillName), skillRank))
+            table.insert(skills, string.format('"%s":"%d/%d"', Escape(skillName), skillRank, skillMaxRank))
         end
     end
     table.insert(parts, '"Skills":{'..table.concat(skills, ",")..'}')
 
     -- SPELLS
-    local spells = {}
-    local i = 1
-    while true do
-       local spellName, spellRank = GetSpellName(i, BOOKTYPE_SPELL)
-       if not spellName then break end
-       if spellRank and spellRank ~= "" then
-           table.insert(spells, string.format('"%s (%s)"', Escape(spellName), Escape(spellRank)))
-       else
-           table.insert(spells, '"'..Escape(spellName)..'"')
-       end
-       i = i + 1
+    local spellsResult = AIContext.Scripts["Spells"]()
+    local spellsMatch = string.match(spellsResult, '"Spells":%[%w*')
+    if spellsMatch then
+        table.insert(parts, string.match(spellsResult, '"Spells":.*'))
     end
-    table.insert(parts, '"Spells":['..table.concat(spells, ",")..']')
 
     -- TALENTS
     local tal = {}
@@ -141,9 +410,9 @@ AIContext.Scripts["AI"] = function()
         local t_build = {}
         for i=1, GetNumTalents(t) do
             local name, _, _, _, rank, maxRank = GetTalentInfo(t, i)
-            if rank > 0 then table.insert(t_build, string.format('"%s":{"r":%d,"m":%d}', Escape(name), rank, maxRank)) end
+            if rank > 0 then table.insert(t_build, string.format('"%s":%d', Escape(name), rank)) end
         end
-        table.insert(tal, string.format('"%s":{"pts":%d,"t":{%s}}', Escape(tabName), pointsSpent, table.concat(t_build, ",")))
+        table.insert(tal, string.format('"%s (%d)":{%s}', Escape(tabName), pointsSpent, table.concat(t_build, ",")))
     end
     table.insert(parts, '"Talents":{'..table.concat(tal, ",")..'}')
 
@@ -154,9 +423,9 @@ AIContext.Scripts["AI"] = function()
         if enabled then
             if glyphSpellID then
                 local name = GetSpellInfo(glyphSpellID)
-                if name then table.insert(gly, string.format('{"s":%d,"n":"%s"}', i, Escape(name))) end
+                if name then table.insert(gly, string.format('"%s"', Escape(name))) end
             else
-                table.insert(gly, string.format('{"s":%d,"n":"Empty"}', i))
+                table.insert(gly, '"Empty"')
             end
         end
     end
@@ -166,7 +435,7 @@ AIContext.Scripts["AI"] = function()
     local mnt = {}
     for i=1, GetNumCompanions("MOUNT") do
          local _, name, _, _, isSummoned = GetCompanionInfo("MOUNT", i)
-         table.insert(mnt, string.format('{"n":"%s","s":%d}', Escape(name or "Unknown Mount"), isSummoned and 1 or 0))
+         table.insert(mnt, string.format('"%s"', Escape(name or "Unknown Mount")))
     end
     table.insert(parts, '"Mounts":['..table.concat(mnt, ",")..']')
 
@@ -174,7 +443,7 @@ AIContext.Scripts["AI"] = function()
     local pts = {}
     for i=1, GetNumCompanions("CRITTER") do
          local _, name, _, _, isSummoned = GetCompanionInfo("CRITTER", i)
-         table.insert(pts, string.format('{"n":"%s","s":%d}', Escape(name or "Unknown Pet"), isSummoned and 1 or 0))
+         table.insert(pts, string.format('"%s"', Escape(name or "Unknown Pet")))
     end
     table.insert(parts, '"Pets":['..table.concat(pts, ",")..']')
 
@@ -186,72 +455,68 @@ AIContext.Scripts["AI"] = function()
             local standings = {[0]="Unknown", [1]="Hated", [2]="Hostile", [3]="Unfriendly", [4]="Neutral", [5]="Friendly", [6]="Honored", [7]="Revered", [8]="Exalted"}
             local current = earnedValue - bottomValue
             local max = topValue - bottomValue
-            table.insert(rep, string.format('"%s":{"s":"%s","c":%d,"m":%d}', Escape(name), standings[standingID] or "Neutral", current, max))
+            table.insert(rep, string.format('"%s":"%s %d/%d"', Escape(name), standings[standingID] or "Neutral", current, max))
         end
     end
     table.insert(parts, '"Reputation":{'..table.concat(rep, ",")..'}')
 
     -- RECIPES
-    local r_list = {}
-    if db.Recipes then
-        for prof, list in pairs(db.Recipes) do
-            local p_r = {}
-            for _, r in ipairs(list) do table.insert(p_r, '"'..Escape(r)..'"') end
-            table.insert(r_list, '"'..prof..'":['..table.concat(p_r, ",")..']')
-        end
+    local recipesResult = AIContext.Scripts["Recipes"]()
+    local recipesMatch = string.match(recipesResult, '"Recipes":{%w*')
+    if recipesMatch then
+        table.insert(parts, string.match(recipesResult, '"Recipes":.*'))
     end
-    table.insert(parts, '"Recipes":{'..table.concat(r_list, ",")..'}')
-
-    -- PROFESSION SKILLS (Names and Ranks)
-    local profs = {}
-    local numSkills = GetNumSkillLines()
-    local currentHeader = ""
-    for i=1, numSkills do
-        local skillName, isHeader, _, skillRank, _, _, skillMaxRank = GetSkillLineInfo(i)
-        if isHeader then
-            currentHeader = skillName
-        else
-            if currentHeader == "Professions" or currentHeader == "Secondary Skills" then
-                table.insert(profs, string.format('"%s":{"r":%d,"m":%d}', Escape(skillName), skillRank, skillMaxRank))
-            end
-        end
-    end
-    table.insert(parts, '"Professions":{'..table.concat(profs, ",")..'}')
 
     -- QUESTS
     local q_list = {}
     ExpandQuestHeader(0)
-    for i=1, GetNumQuestLogEntries() do
-        local title, level, _, _, isHeader, _, isComplete = GetQuestLogTitle(i)
-        if not isHeader and title then
-            local st = (isComplete == 1 and 1) or (isComplete == -1 and -1) or 0
-            table.insert(q_list, string.format('{"t":"%s","l":%d,"s":%d}', Escape(title), level, st))
+    local numEntries = GetNumQuestLogEntries()
+    for i = 1, numEntries do
+        local title, level, questTag, suggestedGroup, isHeader, isCollapsed, isComplete, isDaily, questID = GetQuestLogTitle(i)
+        if not isHeader then
+            local safeTitle = string.gsub(title or "", '"', '\\"')
+            local statusText = ""
+            
+            if isComplete == 1 then
+                statusText = " (Complete)"
+            elseif isComplete == -1 then
+                statusText = " (Failed)"
+            else
+                local numObjectives = GetNumQuestLeaderBoards(i)
+                if numObjectives and numObjectives > 0 then
+                    local objList = {}
+                    for j = 1, numObjectives do
+                        local objText, objType, objFinished = GetQuestLogLeaderBoard(j, i)
+                        if objText then
+                            local safeObjText = string.gsub(objText, '"', '\\"')
+                            table.insert(objList, safeObjText)
+                        end
+                    end
+                    if #objList > 0 then
+                        statusText = " (" .. table.concat(objList, ", ") .. ")"
+                    end
+                end
+            end
+            
+            local formattedQuest = string.format('"[%d] %s%s"', level, safeTitle, statusText)
+            table.insert(q_list, formattedQuest)
         end
     end
     table.insert(parts, '"Quests":['..table.concat(q_list, ",")..']')
 
-    -- ADDONS (All addons with load status)
-    local adds = {}
-    for i=1, GetNumAddOns() do
-        local name, title, _, loadable, reason, security, _ = GetAddOnInfo(i)
-        local loaded = IsAddOnLoaded(i) and 1 or 0
-        table.insert(adds, string.format('{"n":"%s","l":%d}', Escape(title or name), loaded))
+    -- ADDONS
+    local addonsResult = AIContext.Scripts["Addons"]()
+    local addonsMatch = string.match(addonsResult, '"Addons":%[%w*')
+    if addonsMatch then
+        table.insert(parts, string.match(addonsResult, '"Addons":.*'))
     end
-    table.insert(parts, '"Addons":['..table.concat(adds, ",")..']')
 
-    -- ACHIEVEMENTS (Completed with ID and Points)
-    local ach = {}
-    local categories = GetCategoryList()
-    for _, catId in ipairs(categories) do
-        local numAch = GetCategoryNumAchievements(catId)
-        for i=1, numAch do
-            local id, name, points, completed = GetAchievementInfo(catId, i)
-            if completed then
-                table.insert(ach, string.format('{"id":%d,"n":"%s","p":%d}', id, Escape(name), points))
-            end
-        end
+    -- ACHIEVEMENTS
+    local achResult = AIContext.Scripts["Achievements"]()
+    local achMatch = string.match(achResult, '"Achievements":%[%w*')
+    if achMatch then
+        table.insert(parts, string.match(achResult, '"Achievements":.*'))
     end
-    table.insert(parts, '"Achievements":['..table.concat(ach, ",")..']')
 
     -- PARTY/RAID
     local pr = {}

@@ -6,9 +6,9 @@ AIContext.Scripts["Talents"] = function()
         local t_build = {}
         for i=1, GetNumTalents(t) do
             local name, _, _, _, rank, maxRank = GetTalentInfo(t, i)
-            if rank > 0 then table.insert(t_build, string.format('"%s":{"r":%d,"m":%d}', Escape(name), rank, maxRank)) end
+            if rank > 0 then table.insert(t_build, string.format('"%s":%d', Escape(name), rank)) end
         end
-        table.insert(tal, string.format('"%s":{"pts":%d,"t":{%s}}', Escape(tabName), pointsSpent, table.concat(t_build, ",")))
+        table.insert(tal, string.format('"%s (%d)":{%s}', Escape(tabName), pointsSpent, table.concat(t_build, ",")))
     end
     return '{"Talents":{'..table.concat(tal, ",")..'}}'
 end

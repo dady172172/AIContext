@@ -2,7 +2,7 @@
 ## Title: AI Context
 ## Notes: Exports character data for AI assistance.
 ## Author: Keathunsar
-## Version: 1.3.3
+## Version: 1.3.4
 ## SavedVariables: AIContextDB
 
 -- Main XML --
