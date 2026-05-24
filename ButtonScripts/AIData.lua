@@ -522,7 +522,7 @@ AIContext.Scripts["AI"] = function()
     local pr = {}
     local numMembers = GetNumPartyMembers() + GetNumRaidMembers()
     if numMembers > 0 then
-        local inRaid = IsInRaid()
+        local inRaid = GetNumRaidMembers() > 0
         table.insert(pr, '"inRaid":' .. (inRaid and 'true' or 'false'))
         
         local source = inRaid and "raid" or "party"

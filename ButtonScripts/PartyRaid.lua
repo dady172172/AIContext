@@ -1,5 +1,5 @@
 AIContext.Scripts["PartyRaid"] = function()
-    local function Escape(s) return string.gsub(s or "", '"', '\\"') end
+    local function Escape(s) return (string.gsub(s or "", '"', '\\"')) end
     local parts = {}
     
     local numMembers = GetNumPartyMembers() + GetNumRaidMembers()

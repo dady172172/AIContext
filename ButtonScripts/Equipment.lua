@@ -197,7 +197,7 @@ AIContext.Scripts["Equipment"] = function()
     end
     
     -- Helper function to parse item link and extract detailed info
-    local function GetItemDetails(link)
+    local function GetItemDetails(link, slot)
         if not link then return nil end
         
         -- Extract item ID from link (format: |c|Hitem:itemID:...)
@@ -225,7 +225,7 @@ AIContext.Scripts["Equipment"] = function()
         if itemEquipLoc then details.slot = itemEquipLoc end
         
         -- Get durability for this slot
-        local currentDurability, maxDurability = GetInventoryItemDurability(i)
+        local currentDurability, maxDurability = GetInventoryItemDurability(slot)
         if currentDurability and maxDurability and maxDurability > 0 then
             details.durability = {current = currentDurability, max = maxDurability}
         end
@@ -784,7 +784,7 @@ AIContext.Scripts["Equipment"] = function()
     for i=1, 19 do
         local link = GetInventoryItemLink("player", i)
         if link then
-            local details = GetItemDetails(link)
+            local details = GetItemDetails(link, i)
             if details then
                 local slotData = {}
                 
