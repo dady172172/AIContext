@@ -722,8 +722,9 @@ AIContext.Scripts["Equipment"] = function()
             if gemID and gemID > 0 then
                 local socketInfo = {gemID = gemID}
                 
-                -- Get gem info
-                local gemName, gemLink = GetItemInfo(gemID)
+                -- FIX: Use GetItemGem instead of GetItemInfo.
+                -- The gemID from the string match is an Enchant ID, not an Item ID!
+                local gemName, gemLink = GetItemGem(link, i)
                 if gemName then
                     socketInfo.name = gemName
                     
